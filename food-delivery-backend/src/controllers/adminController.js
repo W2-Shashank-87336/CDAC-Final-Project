@@ -50,6 +50,30 @@ exports.getAllOrders = (req, res) => {
         res.status(200).json(results);
     });
 };
+exports.getAllUsers = (req, res) => {
+    const query = `
+        SELECT 
+    users.*, 
+    orders.*, 
+    order_items.* 
+FROM 
+    orders
+JOIN 
+    users ON orders.customerId = users.id
+JOIN 
+    order_items ON order_items.orderId = orders.id;
+    `;
+
+    conn.query(query, (error, results) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: 'Database query failed' });
+        }
+
+        res.status(200).json(results);
+        console.log(results);
+    });
+};
 
 // Manage all restaurants
 exports.getAllRestaurants = (req, res) => {

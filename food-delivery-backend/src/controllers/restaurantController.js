@@ -48,25 +48,31 @@ exports.getRestaurantDetails = (req, res) => {
 // Create a new restaurant
 exports.createRestaurant = (req, res) => {
     const { name, description, addressLine1, latitude, longitude, ownerId } = req.body;
+    const restaurantImage = req.file ? req.file.path : null; // Store file path if uploaded
 
     if (!name || !description || !addressLine1 || !latitude || !longitude || !ownerId) {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
     const query = `
-        INSERT INTO restaurants (name, description, addressLine1, latitude, longitude, ownerId, isActive) 
-        VALUES (?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO restaurants (name, description, addressLine1, latitude, longitude, ownerId, image, isActive) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
     `;
 
-    conn.query(query, [name, description, addressLine1, latitude, longitude, ownerId], (error, result) => {
+    conn.query(query, [name, description, addressLine1, latitude, longitude, ownerId, restaurantImage], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: 'Database query failed' });
         }
 
-        res.status(201).json({ message: 'Restaurant created successfully', restaurantId: result.insertId });
+        res.status(201).json({ 
+            message: 'Restaurant created successfully', 
+            restaurantId: result.insertId, 
+            restaurantImage 
+        });
     });
 };
+
 
 // Update restaurant details
 exports.updateRestaurant = (req, res) => {

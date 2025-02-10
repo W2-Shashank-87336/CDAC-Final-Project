@@ -1,32 +1,36 @@
 const { conn } = require('../config/db');
 const jwt = require('jsonwebtoken');
 
+
 // JWT secret key and expiration
 const JWT_SECRET = 'your_jwt_secret'; // Use a strong, secure secret in production
 const JWT_EXPIRATION = '1h'; // Token validity
 const JWT_REFRESH_EXPIRATION = '7d'; // Refresh token validity
 
-// Register a new user
+
 exports.register = (req, res) => {
     const { fullName, email, phone, password, role } = req.body;
-
+    
     if (!fullName || !email || !phone || !password || !role) {
-        return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'All fields are required' });
     }
-
-    const query = `
-        INSERT INTO users (fullName, email, phone, password, role) 
-        VALUES (?, ?, ?, ?, ?);
-    `;
-
-    conn.query(query, [fullName, email, phone, password, role], (error, result) => {
-        if (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Database query failed' });
-        }
-        res.status(201).json({ message: 'User registered successfully', data: result });
+  
+    let profileImage = null;
+    if (req.file) {
+      profileImage = req.file.path; // Store the path relative to server root
+    }
+  
+    const query = `INSERT INTO users (fullName, email, phone, password, role, profileImage) VALUES (?, ?, ?, ?, ?, ?)`;
+  
+    conn.query(query, [fullName, email, phone, password, role, profileImage], (error, result) => {
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Database query failed' });
+      }
+      res.status(201).json({ message: 'User registered successfully', data: result });
     });
-};
+  };
+
 
 // User login
 exports.login = (req, res) => {

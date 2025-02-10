@@ -42,42 +42,60 @@ exports.getMenu = (req, res) => {
     });
 };
 
-// Create a new menu
+// Create a new menu with image upload
 exports.createMenu = (req, res) => {
     const { restaurantId } = req.params;
     const { menuName, isActive } = req.body;
+    const menuImage = req.file ? req.file.path : null; // Store file path if uploaded
 
     if (!menuName) {
         return res.status(400).json({ error: 'Menu name is required' });
     }
 
     const query = `
-        INSERT INTO menus (restaurantId, menuName, isActive) 
-        VALUES (?, ?, ?)
+        INSERT INTO menus (restaurantId, menuName, image, isActive) 
+        VALUES (?, ?, ?, ?)
     `;
 
-    conn.query(query, [restaurantId, menuName, isActive ? 1 : 0], (error, result) => {
+    conn.query(query, [restaurantId, menuName, menuImage, isActive ? 1 : 0], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: 'Database query failed' });
         }
 
-        res.status(201).json({ message: 'Menu created successfully', data: result });
+        res.status(201).json({ 
+            message: 'Menu created successfully', 
+            menuId: result.insertId, 
+            menuImage 
+        });
     });
 };
 
-// Update a menu
+// Update a menu with new image upload
 exports.updateMenu = (req, res) => {
     const { restaurantId, menuId } = req.params;
     const { menuName, isActive } = req.body;
+    const menuImage = req.file ? req.file.path : null;
 
-    const query = `
-        UPDATE menus 
-        SET menuName = ?, isActive = ? 
-        WHERE id = ? AND restaurantId = ?
-    `;
+    let query, values;
+    
+    if (menuImage) {
+        query = `
+            UPDATE menus 
+            SET menuName = ?, image = ?, isActive = ? 
+            WHERE id = ? AND restaurantId = ?
+        `;
+        values = [menuName, menuImage, isActive ? 1 : 0, menuId, restaurantId];
+    } else {
+        query = `
+            UPDATE menus 
+            SET menuName = ?, isActive = ? 
+            WHERE id = ? AND restaurantId = ?
+        `;
+        values = [menuName, isActive ? 1 : 0, menuId, restaurantId];
+    }
 
-    conn.query(query, [menuName, isActive ? 1 : 0, menuId, restaurantId], (error, result) => {
+    conn.query(query, values, (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: 'Database query failed' });
@@ -87,7 +105,7 @@ exports.updateMenu = (req, res) => {
             return res.status(404).json({ error: 'Menu not found' });
         }
 
-        res.status(200).json({ message: 'Menu updated successfully' });
+        res.status(200).json({ message: 'Menu updated successfully', menuImage });
     });
 };
 

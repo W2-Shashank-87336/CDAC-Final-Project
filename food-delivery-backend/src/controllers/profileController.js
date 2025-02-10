@@ -4,7 +4,7 @@ const { conn } = require('../config/db');
 exports.getProfile = (req, res) => {
     const userId = req.user.id;
 
-    const query = `SELECT id, fullName, email, phone, role FROM users WHERE id = ?`;
+    const query = `SELECT id, fullName, email, phone, role, profileImage FROM users WHERE id = ?`;
 
     conn.query(query, [userId], (error, results) => {
         if (error) {

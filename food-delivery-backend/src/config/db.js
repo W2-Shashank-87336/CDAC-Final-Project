@@ -1,4 +1,5 @@
 const mysql = require('mysql2');
+
 const connectionDetails = {
     host: 'localhost',
     user: 'root',

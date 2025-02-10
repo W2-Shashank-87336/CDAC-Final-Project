@@ -2,16 +2,43 @@ const { conn } = require('../config/db');
 
 // CUSTOMER ENDPOINTS
 
-// List orders for the logged-in customer
 exports.listCustomerOrders = (req, res) => {
     const customerId = req.user.id; // Extracted from JWT token
     const { status } = req.query;
 
-    let query = `SELECT * FROM orders WHERE customerId = ?`;
+    let query = `
+        SELECT 
+            o.id AS orderId,
+            o.status,
+            o.total AS totalAmount,
+            o.paymentMethod,
+            o.created_at AS createdAt,
+            r.id AS restaurantId,
+            r.name AS restaurantName,
+            r.addressLine1 AS restaurantAddress,
+            r.latitude AS restaurantLatitude,
+            r.longitude AS restaurantLongitude,
+            a.id AS addressId,
+            a.addressLine1 AS deliveryAddress,
+            a.city AS deliveryCity,
+            a.latitude AS deliveryLatitude,
+            a.longitude AS deliveryLongitude,
+            oi.itemId,
+            oi.quantity,
+            mi.itemName,
+            mi.price AS itemPrice
+        FROM orders o
+        JOIN restaurants r ON o.restaurantId = r.id
+        JOIN addresses a ON o.addressId = a.id
+        JOIN order_items oi ON o.id = oi.orderId
+        JOIN menu_items mi ON oi.itemId = mi.id
+        WHERE o.customerId = ?
+    `;
+
     const params = [customerId];
 
     if (status) {
-        query += ` AND status = ?`;
+        query += ` AND o.status = ?`;
         params.push(status);
     }
 
@@ -21,25 +48,63 @@ exports.listCustomerOrders = (req, res) => {
             return res.status(500).json({ error: 'Database query failed' });
         }
 
-        res.status(200).json(results);
+        // Group orders
+        const ordersMap = {};
+
+        results.forEach(row => {
+            if (!ordersMap[row.orderId]) {
+                ordersMap[row.orderId] = {
+                    orderId: row.orderId,
+                    status: row.status,
+                    totalAmount: row.totalAmount,
+                    paymentMethod: row.paymentMethod,
+                    createdAt: row.createdAt,
+                    restaurant: {
+                        id: row.restaurantId,
+                        name: row.restaurantName,
+                        address: row.restaurantAddress,
+                        latitude: row.restaurantLatitude,
+                        longitude: row.restaurantLongitude
+                    },
+                    address: {
+                        id: row.addressId,
+                        line: row.deliveryAddress,
+                        city: row.deliveryCity,
+                        latitude: row.deliveryLatitude,
+                        longitude: row.deliveryLongitude
+                    },
+                    items: []
+                };
+            }
+
+            ordersMap[row.orderId].items.push({
+                itemId: row.itemId,
+                name: row.itemName,
+                price: row.itemPrice,
+                quantity: row.quantity
+            });
+        });
+
+        res.status(200).json(Object.values(ordersMap));
     });
 };
+
 
 // Create a new order
 exports.createOrder = (req, res) => {
     const customerId = req.user.id; // Extracted from JWT token
-    const { restaurantId, addressId, couponId, paymentMethod, items } = req.body;
+    const { restaurantId, addressId, couponId, paymentMethod, items, total } = req.body;
 
     if (!restaurantId || !addressId || !paymentMethod || !items || items.length === 0) {
         return res.status(400).json({ error: 'Missing required fields or items' });
     }
 
     const query = `
-        INSERT INTO orders (customerId, restaurantId, addressId, couponId, paymentMethod, status)
-        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        INSERT INTO orders (customerId, restaurantId, addressId, couponId, paymentMethod, total, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
     `;
 
-    conn.query(query, [customerId, restaurantId, addressId, couponId, paymentMethod], (error, result) => {
+    conn.query(query, [customerId, restaurantId, addressId, couponId, paymentMethod, total], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: 'Database query failed' });
@@ -47,12 +112,16 @@ exports.createOrder = (req, res) => {
 
         const orderId = result.insertId;
 
-        // Insert items into order_items table
-        const itemQueries = items.map(item => `
-            INSERT INTO order_items (orderId, itemId, quantity) VALUES (${orderId}, ${item.itemId}, ${item.quantity});
-        `);
+        if (items.length === 0) {
+            return res.status(201).json({ message: 'Order created successfully', orderId });
+        }
 
-        conn.query(itemQueries.join(' '), (error) => {
+        // Prepare values for bulk insert
+        const values = items.map(item => [orderId, item.itemId, item.quantity]);
+
+        const itemQuery = 'INSERT INTO order_items (orderId, itemId, quantity) VALUES ?';
+
+        conn.query(itemQuery, [values], (error) => {
             if (error) {
                 console.error(error);
                 return res.status(500).json({ error: 'Failed to add items to the order' });
@@ -137,6 +206,32 @@ exports.listRestaurantOrders = (req, res) => {
         res.status(200).json(results);
     });
 };
+exports.listRestaurantOrderss = (req, res) => {
+    const restaurantId = req.params.restaurantId; // Get restaurantId from the route parameter
+    const { status } = req.query; // Optional filter by status
+
+    let query = `
+        SELECT * FROM orders 
+        WHERE restaurantId = ? 
+    `;
+    const params = [restaurantId]; // Initialize params with the restaurantId
+
+    // If a status is provided, add it to the query and the params
+    if (status) {
+        query += ` AND status = ?`;
+        params.push(status);
+    }
+
+    conn.query(query, params, (error, results) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: 'Database query failed' });
+        }
+
+        res.status(200).json(results);
+    });
+};
+
 
 // Accept an order
 exports.acceptOrder = (req, res) => {

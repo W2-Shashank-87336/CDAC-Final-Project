@@ -13,6 +13,7 @@ const {
     listReadyForPickup,
     acceptDelivery,
     confirmDelivery,
+    listRestaurantOrderss,
 } = require('../controllers/orderController');
 
 const router = express.Router();
@@ -34,5 +35,6 @@ router.patch('/:id/ready-for-pickup', authenticate, readyForPickup); // Set orde
 router.get('/delivery', authenticate, listReadyForPickup); // List orders ready for pickup near partner
 router.patch('/:id/accept-delivery', authenticate, acceptDelivery); // Accept delivery
 router.patch('/:id/delivered', authenticate, confirmDelivery); // Confirm delivery
+router.get('/restaurantOrders/:restaurantId', listRestaurantOrderss);
 
 module.exports = router;

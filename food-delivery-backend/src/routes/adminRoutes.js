@@ -5,6 +5,7 @@ const {
     getAllOrders,
     getAllRestaurants,
     updateSystemSettings,
+    getAllUsers
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get('/dashboard', getDashboardStats); // Aggregated stats for the dashboa
 router.get('/orders', getAllOrders); // All orders in the system
 router.get('/restaurants', getAllRestaurants); // Manage all restaurants
 router.patch('/settings', updateSystemSettings); // System-level changes
+router.get('/users', getAllUsers); // System-level changes
 
 module.exports = router;

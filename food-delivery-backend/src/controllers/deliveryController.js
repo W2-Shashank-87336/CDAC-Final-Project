@@ -9,9 +9,11 @@ exports.listReadyForPickup = (req, res) => {
     }
 
     const query = `
-        SELECT * FROM orders 
-        WHERE status = 'READY_FOR_PICKUP' 
-        AND ST_Distance_Sphere(POINT(latitude, longitude), POINT(?, ?)) <= ?
+        SELECT o.*, r.latitude, r.longitude 
+        FROM orders o
+        JOIN restaurants r ON o.restaurantId = r.id
+        WHERE o.status = 'READY_FOR_PICKUP' 
+        AND ST_Distance_Sphere(POINT(r.latitude, r.longitude), POINT(?, ?)) <= ?
     `;
 
     conn.query(query, [lat, lon, radius], (error, results) => {
@@ -23,6 +25,7 @@ exports.listReadyForPickup = (req, res) => {
         res.status(200).json(results);
     });
 };
+
 
 // Accept a delivery
 exports.acceptDelivery = (req, res) => {
